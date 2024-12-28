@@ -1,4 +1,6 @@
 # from itertools import count
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 import plotly.graph_objects as go
 from PIL import Image
 from nltk.corpus import stopwords
@@ -48,9 +50,19 @@ tokenizer_file_path = 'tokenizer.pkl'
 
 
 # ________________________________________________________________________________________________________________________
+# Authenticate and create a PyDrive instance
+# gauth = GoogleAuth()
+# gauth.LocalWebserverAuth()  # Handles authentication
+# gdrive = GoogleDrive(gauth)
+#
+# file_id = '1HSejVvSygpi4BQyQUBwfJ3pLDjeGgMHw'
+#
+# # Download the file
+# file = gdrive.CreateFile({'id': file_id})
+# file.GetContentFile('my_sentiment_model.pkl')
 
-with open(model_file_path, 'rb') as file:
-    model = pickle.load(file)
+with open(model_file_path, 'rb') as f:
+    model = pickle.load(f)
 
 with open(tokenizer_file_path, 'rb') as handle:
     tokenizer = pickle.load(handle)
@@ -82,8 +94,8 @@ if "compute_signal" not in st.session_state:
 # ________________________________________________________________________________________________________________________
 
 def is_amazon_product_url(url):
-    # Regular expression to check if the URL is an Amazon product page
-    amazon_pattern = r"(https?://(?:www\.)?amazon\.[a-z]+/.*?/dp/\w+)"
+    # Regular expression to check if the URL is an Amazon product page (full and shortened URLs)
+    amazon_pattern = r"(https?://(?:www\.)?amazon\.[a-z]+/.*?/dp/\w+|https?://(?:www\.)?amzn\.[a-z]+/d/\w+)"
     return re.match(amazon_pattern, url) is not None
 
 
@@ -181,12 +193,13 @@ def amazon_logout(driver):
 
 def check_amazon_credentials(username, password):
     try:
+        st.write("Checking your Amazon Credentials")
         # Initialize progress bar
         progress_bar = st.progress(0)
         progress = 0
 
         # Navigate to Amazon login page
-        driver = webdriver.Chrome()
+        driver = webdriver.Chrome(options=chrome_options)
         driver.get("https://www.amazon.com/")
         progress += 20
         progress_bar.progress(progress)
@@ -272,7 +285,7 @@ def check_amazon_credentials(username, password):
 
 def scrape_reviews(url, num):
     product_details = {"product_name": "", "reviews": [], "stars": []}
-    driver = webdriver.Chrome()
+    driver = webdriver.Chrome(options=chrome_options)
     wait = WebDriverWait(driver, 10)  # Wait for up to 10 seconds for elements to load
     st.write(f'Progress of URL {num}')
     progress_bar = st.progress(0)  # Initialize the progress bar
@@ -399,11 +412,11 @@ def get_scores(reviews_array):
 
 # Streamlit UI Configuration
 st.set_page_config(
-    page_title="AMAZON AI PICKER",
+    page_title="AI AMAZON PICKER",
     page_icon=":chart_with_upwards_trend:",
 )
 
-st.header("AMAZON AI PICKER")
+st.header("AI AMAZON PICKER")
 
 # Navigation buttons with consistent width
 if st.sidebar.button("Home", key="home"):
@@ -430,19 +443,35 @@ def display_home_page():
     - Compare products based on **real customer feedback** and make informed decisions with confidence.  
     """)
 
+
     # Key Features Section with a visually appealing layout
     st.markdown("### 📌 **Key Features**")
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image("https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
-                 width=100)  # Replace with a relevant image if necessary
+                 width=300)  # Replace with a relevant image if necessary
     with col2:
         st.markdown("""
         - **Real-time Credential Validation**: Ensure your Amazon account details are correct.  
         - **URL Validation**: Verify the correctness of product links before analysis.  
         - **Sentiment Analysis**: Get comprehensive sentiment scores for product reviews using a cutting-edge **LSTM model**.  
         - **Ranking System**: Compare and rank products based on review sentiments to make smarter purchase decisions.  
-        """)
+    """)
+
+    # Explanation on why credentials are needed
+    st.markdown("### 🔐 **Why Do We Need Your Amazon Credentials?**")
+    st.write("""
+        To retrieve comprehensive reviews for Amazon products, we need to log in to Amazon's platform.
+        Without proper credentials, Amazon restricts access to a limited number of reviews, which affects our ability to provide accurate sentiment analysis. 
+        By securely verifying your Amazon credentials, we can ensure that we retrieve all the reviews needed to analyze and rank the products effectively.
+    """)
+
+    # Reassurance about security and automatic logout
+    st.markdown("### 🛡️ **Your Security and Privacy Matter**")
+    st.write("""
+        You don't need to worry about your credentials! Once we retrieve the reviews, **you will automatically be logged out** to ensure your Amazon account remains secure.
+        Your credentials are only used for the purpose of fetching the reviews and are never stored or misused.
+    """)
 
     # Add a dropdown for "Get Started"
     st.markdown("### 🚀 **Get Started**")
@@ -473,12 +502,6 @@ def display_home_page():
 
     # Display the image
     st.image(image, caption="LSTM Model Accuracy Over Time", use_container_width=True)
-    # GitHub Link Section
-    st.markdown("### 📂 **GitHub Repository**")
-    st.write("""
-    Explore the complete codebase or contribute to this open-source project:  
-    [**GitHub Repository**](https://github.com/Rishabh-441/Sentiment-Analysis-python-notebook/tree/main)
-    """)
 
     # Why Choose This Tool Section
     st.markdown("### 🌟 **Why Choose Amazon Review Analyzer?**")
@@ -488,6 +511,13 @@ def display_home_page():
     - 🤖 **Intelligent**: Powered by advanced machine learning models.  
     - 🎯 **Accurate**: Delivers insights you can rely on for smarter decisions.  
     """)
+
+    # GitHub Link Section
+    st.markdown("### 📂 **GitHub Repository**")
+    st.write("""
+        Explore the complete codebase or contribute to this open-source project:  
+        [**GitHub Repository**](https://github.com/Rishabh-441/Sentiment-Analysis-python-notebook/tree/main)
+        """)
 
     # Add a motivational footer
     st.markdown("---")
@@ -587,7 +617,8 @@ elif (st.session_state.page == "Model Implementation") & (st.session_state.crede
     with st.form(key="url_form"):
         # Loop through and create 4 text input fields for URLs
         for i in range(4):
-            st.session_state.urls.append("")
+            if i >= len(st.session_state.urls):
+                st.session_state.urls.append("")
             # Set value for the URL text input
             st.session_state.urls[i] = st.text_input(f"Product URL {i + 1}:", value=st.session_state.urls[i],
                                                      key=f"product_url_{i}")
