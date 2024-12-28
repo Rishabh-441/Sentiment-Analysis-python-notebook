@@ -79,8 +79,13 @@ if "credentials_ok" not in st.session_state:
 if "compute_signal" not in st.session_state:
     st.session_state.compute_signal = False
 
-if "good_urls" not in st.session_state:
-    st.session_state.good_urls = []
+# ________________________________________________________________________________________________________________________
+
+def is_amazon_product_url(url):
+    # Regular expression to check if the URL is an Amazon product page
+    amazon_pattern = r"(https?://(?:www\.)?amazon\.[a-z]+/.*?/dp/\w+)"
+    return re.match(amazon_pattern, url) is not None
+
 
 # ________________________________________________________________________________________________________________________
 
@@ -565,6 +570,9 @@ elif (st.session_state.page == "Model Implementation") & (st.session_state.crede
             if url in seen_urls and url != "":  # Check if the URL is a duplicate
                 st.warning(f"Product URL {i + 1} is duplicate!")
                 clear_url_data(i)
+            if (url != "") &  (not is_amazon_product_url(url)):
+                st.warning(f"Product URL {i+1} is not a valid AMAZON Product link!")
+                clear_url_data(i)
             elif url != "":  # Add unique, non-empty URLs to the set
                 seen_urls.add(url)
 
@@ -607,7 +615,13 @@ elif (st.session_state.page == "Model Implementation") & (st.session_state.crede
 elif (st.session_state.page == "Results") & (st.session_state.credentials_ok == True):
     st.title("Results")
 
-    urls = list(set(st.session_state.urls))
+    def get_good_urls(urls):
+        # Filter out non-empty, stripped Amazon product URLs
+        good_urls = [url.strip() for url in urls if url.strip() and is_amazon_product_url(url.strip())]
+        return good_urls
+
+
+    urls = list(set(get_good_urls(st.session_state.urls)))
     st.session_state.urls = list(filter(lambda x: x != "", urls))
 
     total_urls = len(st.session_state.urls)
