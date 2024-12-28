@@ -399,11 +399,11 @@ def get_scores(reviews_array):
 
 # Streamlit UI Configuration
 st.set_page_config(
-    page_title="Product Sentiment Analyzer",
+    page_title="AMAZON AI PICKER",
     page_icon=":chart_with_upwards_trend:",
 )
 
-st.header("RICHIE AI PICKER")
+st.header("AMAZON AI PICKER")
 
 # Navigation buttons with consistent width
 if st.sidebar.button("Home", key="home"):
