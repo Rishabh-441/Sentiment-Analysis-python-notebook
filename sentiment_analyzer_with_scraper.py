@@ -387,7 +387,7 @@ st.set_page_config(
     page_icon=":chart_with_upwards_trend:",
 )
 
-st.header("RICHIE AI PICKER")
+st.header("AI PICKER")
 
 
 # Navigation buttons with consistent width
